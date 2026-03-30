@@ -1,0 +1,99 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+#canvas {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+  transform-origin: top left;
+}
+
+.overlay-element {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.overlay-text {
+  white-space: pre-wrap;
+}
+
+.overlay-image {
+  display: block;
+}
+
+.hidden-before-anim {
+  opacity: 0;
+}
+
+/* animation presets */
+
+.anim-fadeIn {
+  animation-name: fadeIn;
+  animation-fill-mode: forwards;
+}
+
+.anim-slideInLeft {
+  animation-name: slideInLeft;
+  animation-fill-mode: forwards;
+}
+
+.anim-slideInDown {
+  animation-name: slideInDown;
+  animation-fill-mode: forwards;
+}
+
+.anim-scaleIn {
+  animation-name: scaleIn;
+  animation-fill-mode: forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: var(--target-opacity, 1);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-80px);
+  }
+  to {
+    opacity: var(--target-opacity, 1);
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-80px);
+  }
+  to {
+    opacity: var(--target-opacity, 1);
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: var(--target-opacity, 1);
+    transform: scale(1);
+  }
+}
