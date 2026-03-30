@@ -6,26 +6,6 @@
   },
   "elements": [
     {
-      "id": "bg",
-      "type": "rect",
-      "x": 0,
-      "y": 0,
-      "width": 1920,
-      "height": 1080,
-      "opacity": 1,
-      "zIndex": 0,
-      "style": {
-        "fill": "#1f3550"
-      },
-      "animations": [
-        {
-          "type": "fadeIn",
-          "startMs": 0,
-          "durationMs": 300
-        }
-      ]
-    },
-    {
       "id": "accent",
       "type": "rect",
       "x": 100,

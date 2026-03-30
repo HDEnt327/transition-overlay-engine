@@ -1,0 +1,42 @@
+{
+  "canvas": {
+    "width": 1920,
+    "height": 1080,
+    "background": "transparent"
+  },
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 420,
+      "y": 360,
+      "width": 1200,
+      "height": 100,
+      "opacity": 1,
+      "zIndex": 3,
+      "content": {
+        "text": "NEXT SHOWCASE"
+      },
+      "style": {
+        "fontFamily": "Arial, sans-serif",
+        "fontSize": 72,
+        "fontWeight": 700,
+        "color": "#ffffff",
+        "align": "left"
+      },
+      "animIn": {
+        "type": "slideInLeft",
+        "startMs": 300,
+        "durationMs": 700,
+        "distance": 180,
+        "easing": "ease-out"
+      },
+      "animOut": {
+        "type": "fadeOut",
+        "startMs": 2600,
+        "durationMs": 400,
+        "easing": "ease-in"
+      }
+    }
+  ]
+}

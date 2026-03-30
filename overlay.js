@@ -1,7 +1,22 @@
-async function loadScene() {
-  const response = await fetch("scene.json");
+let currentScene = null;
+let activeTimers = [];
+
+function clearActiveTimers() {
+  for (const timerId of activeTimers) {
+    clearTimeout(timerId);
+  }
+  activeTimers = [];
+}
+
+function getSceneFileFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("scene") || "scene.json";
+}
+
+async function loadScene(sceneFile) {
+  const response = await fetch(sceneFile);
   if (!response.ok) {
-    throw new Error(`Failed to load scene.json: ${response.status}`);
+    throw new Error(`Failed to load ${sceneFile}: ${response.status}`);
   }
   return await response.json();
 }
@@ -47,17 +62,22 @@ function createBaseElement(el) {
 }
 
 function applySharedStyles(node, el) {
-  node.style.left = `${el.x ?? 0}px`;
-  node.style.top = `${el.y ?? 0}px`;
-  node.style.width = `${el.width ?? 100}px`;
-  node.style.height = `${el.height ?? 100}px`;
-  node.style.zIndex = String(el.zIndex ?? 0);
-  node.style.opacity = String(el.opacity ?? 1);
-  node.style.setProperty("--target-opacity", String(el.opacity ?? 1));
+  const x = el.x ?? 0;
+  const y = el.y ?? 0;
+  const width = el.width ?? 100;
+  const height = el.height ?? 100;
+  const opacity = el.opacity ?? 1;
+  const rotation = el.rotation ?? 0;
+  const zIndex = el.zIndex ?? 0;
 
-  if (el.rotation) {
-    node.style.transform = `rotate(${el.rotation}deg)`;
-  }
+  node.style.left = `${x}px`;
+  node.style.top = `${y}px`;
+  node.style.width = `${width}px`;
+  node.style.height = `${height}px`;
+  node.style.zIndex = String(zIndex);
+  node.style.opacity = String(opacity);
+  node.style.setProperty("--target-opacity", String(opacity));
+  node.style.setProperty("--base-rotate", `${rotation}deg`);
 }
 
 function applyTypeStyles(node, el) {
@@ -75,6 +95,13 @@ function applyTypeStyles(node, el) {
     node.style.textAlign = style.align ?? "left";
     node.style.display = "flex";
     node.style.alignItems = "center";
+    node.style.justifyContent =
+      style.align === "center"
+        ? "center"
+        : style.align === "right"
+        ? "flex-end"
+        : "flex-start";
+    node.style.whiteSpace = style.whiteSpace ?? "pre-wrap";
   }
 
   if (el.type === "image") {
@@ -82,41 +109,120 @@ function applyTypeStyles(node, el) {
   }
 }
 
-function animationClassName(type) {
+function getInAnimationPreset(type) {
   switch (type) {
     case "fadeIn":
-      return "anim-fadeIn";
+      return { preClass: "pre-fadeIn", animClass: "anim-fadeIn" };
     case "slideInLeft":
-      return "anim-slideInLeft";
+      return { preClass: "pre-slideInLeft", animClass: "anim-slideInLeft" };
     case "slideInDown":
-      return "anim-slideInDown";
+      return { preClass: "pre-slideInDown", animClass: "anim-slideInDown" };
     case "scaleIn":
-      return "anim-scaleIn";
+      return { preClass: "pre-scaleIn", animClass: "anim-scaleIn" };
     default:
       return null;
   }
 }
 
-function applyAnimations(node, el) {
-  const animations = el.animations ?? [];
-  if (animations.length === 0) {
-    return;
+function getOutAnimationClass(type) {
+  switch (type) {
+    case "fadeOut":
+      return "anim-fadeOut";
+    case "slideOutLeft":
+      return "anim-slideOutLeft";
+    case "slideOutDown":
+      return "anim-slideOutDown";
+    case "scaleOut":
+      return "anim-scaleOut";
+    default:
+      return null;
+  }
+}
+
+function removeAllAnimationClasses(node) {
+  node.classList.remove(
+    "pre-fadeIn",
+    "pre-slideInLeft",
+    "pre-slideInDown",
+    "pre-scaleIn",
+    "anim-fadeIn",
+    "anim-slideInLeft",
+    "anim-slideInDown",
+    "anim-scaleIn",
+    "anim-fadeOut",
+    "anim-slideOutLeft",
+    "anim-slideOutDown",
+    "anim-scaleOut"
+  );
+}
+
+function setAnimationVariables(node, anim) {
+  if (anim?.distance != null) {
+    node.style.setProperty("--anim-distance", `${anim.distance}px`);
+  } else {
+    node.style.setProperty("--anim-distance", "80px");
   }
 
-  const first = animations[0];
-  const className = animationClassName(first.type);
-  if (!className) {
-    return;
+  if (anim?.fromScale != null) {
+    node.style.setProperty("--anim-from-scale", String(anim.fromScale));
+  } else {
+    node.style.setProperty("--anim-from-scale", "0.8");
   }
 
-  node.classList.add("hidden-before-anim");
-  node.classList.add(className);
-  node.style.animationDelay = `${first.startMs ?? 0}ms`;
-  node.style.animationDuration = `${first.durationMs ?? 500}ms`;
-  node.style.animationTimingFunction = first.easing ?? "ease-out";
+  if (anim?.toScale != null) {
+    node.style.setProperty("--anim-to-scale", String(anim.toScale));
+  } else {
+    node.style.setProperty("--anim-to-scale", "0.8");
+  }
+}
+
+function prepareInAnimation(node, el) {
+  const anim = el.animIn;
+  if (!anim) return null;
+
+  const preset = getInAnimationPreset(anim.type);
+  if (!preset) return null;
+
+  setAnimationVariables(node, anim);
+  node.classList.add(preset.preClass);
+
+  return {
+    node,
+    preClass: preset.preClass,
+    animClass: preset.animClass,
+    delay: anim.startMs ?? 0,
+    duration: anim.durationMs ?? 500,
+    easing: anim.easing ?? "ease-out"
+  };
+}
+
+function scheduleOutAnimation(node, el) {
+  const anim = el.animOut;
+  if (!anim) return;
+
+  const className = getOutAnimationClass(anim.type);
+  if (!className) return;
+
+  const startMs = anim.startMs ?? 0;
+  const durationMs = anim.durationMs ?? 500;
+  const easing = anim.easing ?? "ease-in";
+
+  const timerId = setTimeout(() => {
+    setAnimationVariables(node, anim);
+    removeAllAnimationClasses(node);
+
+    node.classList.add(className);
+    node.style.animationDelay = "0ms";
+    node.style.animationDuration = `${durationMs}ms`;
+    node.style.animationTimingFunction = easing;
+  }, startMs);
+
+  activeTimers.push(timerId);
 }
 
 function renderScene(scene) {
+  clearActiveTimers();
+
   const canvas = document.getElementById("canvas");
   canvas.innerHTML = "";
 
@@ -126,19 +232,52 @@ function renderScene(scene) {
     (a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0)
   );
 
+  const pendingInAnimations = [];
+
   for (const el of elements) {
     const node = createBaseElement(el);
     applySharedStyles(node, el);
     applyTypeStyles(node, el);
-    applyAnimations(node, el);
+
+    const inAnim = prepareInAnimation(node, el);
+    if (inAnim) {
+      pendingInAnimations.push(inAnim);
+    }
+
     canvas.appendChild(node);
+    scheduleOutAnimation(node, el);
   }
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      for (const anim of pendingInAnimations) {
+        anim.node.classList.remove(anim.preClass);
+        anim.node.classList.add(anim.animClass);
+        anim.node.style.animationDelay = `${anim.delay}ms`;
+        anim.node.style.animationDuration = `${anim.duration}ms`;
+        anim.node.style.animationTimingFunction = anim.easing;
+      }
+    });
+  });
+}
+
+function playScene() {
+  if (!currentScene) return;
+  renderScene(currentScene);
+}
+
+async function loadAndPlayScene(sceneFile) {
+  currentScene = await loadScene(sceneFile);
+  playScene();
 }
 
 async function main() {
   try {
-    const scene = await loadScene();
-    renderScene(scene);
+    const sceneFile = getSceneFileFromQuery();
+    await loadAndPlayScene(sceneFile);
+
+    window.playScene = playScene;
+    window.loadAndPlayScene = loadAndPlayScene;
   } catch (err) {
     console.error(err);
   }
